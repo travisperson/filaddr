@@ -12,6 +12,7 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/hashicorp/golang-lru"
 	"github.com/urfave/cli/v2"
 
 	"github.com/filecoin-project/go-address"
@@ -158,8 +159,10 @@ var cmdCollect = &cli.Command{
 			return err
 		}
 
-		// TODO LRU
-		addrCache := make(map[address.Address]address.Address)
+		addrCache, err := lru.New2Q(build.AddrCacheSize)
+		if err != nil {
+			return err
+		}
 
 		var avg float64
 		var rounds int
@@ -181,8 +184,8 @@ var cmdCollect = &cli.Command{
 					return addr, nil
 				}
 
-				if a, ok := addrCache[addr]; ok {
-					return a, nil
+				if a, ok := addrCache.Get(addr); ok {
+					return a.(address.Address), nil
 				}
 
 				raddr, err := api.StateLookupID(ctx, addr, tpk)
@@ -190,7 +193,7 @@ var cmdCollect = &cli.Command{
 					return raddr, err
 				}
 
-				addrCache[addr] = raddr
+				addrCache.Add(addr, raddr)
 				return raddr, err
 			}
 
@@ -288,7 +291,7 @@ var cmdCollect = &cli.Command{
 
 			at.actorsMu.Unlock()
 
-			logging.Logger.Infow("tipset processed", "height", tipset.Height(), "blocks", len(tipset.Cids()), "msgs", len(tmsgs), "elapsed", elapsed, "avg", avg, "tracking", len(at.actors), "cache_size", len(addrCache))
+			logging.Logger.Infow("tipset processed", "height", tipset.Height(), "blocks", len(tipset.Cids()), "msgs", len(tmsgs), "elapsed", elapsed, "avg", avg, "tracking", len(at.actors), "cache_size", addrCache.Len())
 
 			rdb.Set(ctx, store.LastHeightKey, int64(tipset.Height()), 0)
 		}

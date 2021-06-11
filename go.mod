@@ -12,6 +12,7 @@ require (
 	github.com/filecoin-project/lotus v1.9.0
 	github.com/go-redis/redis/v8 v8.10.0
 	github.com/gorilla/mux v1.8.0
+	github.com/hashicorp/golang-lru v0.5.4
 	github.com/urfave/cli/v2 v2.3.0
 	go.uber.org/zap v1.16.0
 )
