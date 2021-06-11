@@ -49,8 +49,13 @@ var cmdHttp = &cli.Command{
 		&cli.StringFlag{
 			Name:    "redis",
 			Usage:   "redis connection string",
-			Value:   "localhost:6379",
 			EnvVars: []string{"FILADDR_REDIS"},
+		},
+		&cli.StringFlag{
+			Name:    "redis-password",
+			Usage:   "redis password",
+			Value:   "localhost:6379",
+			EnvVars: []string{"FILADDR_REDIS_PASSWORD"},
 		},
 	},
 	Action: func(cctx *cli.Context) error {
@@ -62,7 +67,7 @@ var cmdHttp = &cli.Command{
 
 		rdb := redis.NewClient(&redis.Options{
 			Addr:     cctx.String("redis"),
-			Password: "",
+			Password: cctx.String("redis-password"),
 			DB:       0,
 		})
 

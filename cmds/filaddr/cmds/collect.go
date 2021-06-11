@@ -39,6 +39,11 @@ var cmdCollect = &cli.Command{
 			EnvVars: []string{"FILADDR_REDIS"},
 		},
 		&cli.StringFlag{
+			Name:    "redis-password",
+			Usage:   "redis password",
+			EnvVars: []string{"FILADDR_REDIS_PASSWORD"},
+		},
+		&cli.StringFlag{
 			Name:    "lotus",
 			Usage:   "lotus connection string",
 			Value:   "wss://api.chain.love",
@@ -59,7 +64,7 @@ var cmdCollect = &cli.Command{
 
 		rdb := redis.NewClient(&redis.Options{
 			Addr:     cctx.String("redis"),
-			Password: "",
+			Password: cctx.String("redis-password"),
 			DB:       0,
 		})
 

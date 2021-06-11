@@ -23,6 +23,11 @@ var cmdControl = &cli.Command{
 			Value:   "localhost:6379",
 			EnvVars: []string{"FILADDR_REDIS"},
 		},
+		&cli.StringFlag{
+			Name:    "redis-password",
+			Usage:   "redis password",
+			EnvVars: []string{"FILADDR_REDIS_PASSWORD"},
+		},
 	},
 	Subcommands: []*cli.Command{
 		{
@@ -41,7 +46,7 @@ var cmdControl = &cli.Command{
 
 				rdb := redis.NewClient(&redis.Options{
 					Addr:     cctx.String("redis"),
-					Password: "",
+					Password: cctx.String("redis-password"),
 					DB:       0,
 				})
 
@@ -70,7 +75,7 @@ var cmdControl = &cli.Command{
 
 				rdb := redis.NewClient(&redis.Options{
 					Addr:     cctx.String("redis"),
-					Password: "",
+					Password: cctx.String("redis-password"),
 					DB:       0,
 				})
 
@@ -91,7 +96,7 @@ var cmdControl = &cli.Command{
 
 				rdb := redis.NewClient(&redis.Options{
 					Addr:     cctx.String("redis"),
-					Password: "",
+					Password: cctx.String("redis-password"),
 					DB:       0,
 				})
 
@@ -124,7 +129,7 @@ var cmdControl = &cli.Command{
 
 				rdb := redis.NewClient(&redis.Options{
 					Addr:     cctx.String("redis"),
-					Password: "",
+					Password: cctx.String("redis-password"),
 					DB:       0,
 				})
 
@@ -155,7 +160,7 @@ var cmdControl = &cli.Command{
 
 				rdb := redis.NewClient(&redis.Options{
 					Addr:     cctx.String("redis"),
-					Password: "",
+					Password: cctx.String("redis-password"),
 					DB:       0,
 				})
 
