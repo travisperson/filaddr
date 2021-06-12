@@ -3,10 +3,8 @@ package cmds
 import (
 	"container/list"
 	"context"
-	"encoding/json"
 	"log"
 	"net/http"
-	"sync"
 	"time"
 
 	_ "net/http/pprof"
@@ -60,14 +58,13 @@ var cmdCollect = &cli.Command{
 
 		ainfo := cliutil.ParseApiInfo(cctx.String("lotus"))
 
-		at := &ActorTracker{}
-		at.actors = make(map[address.Address][]*types.Message)
-
 		rdb := redis.NewClient(&redis.Options{
 			Addr:     cctx.String("redis"),
 			Password: cctx.String("redis-password"),
 			DB:       0,
 		})
+
+		at := store.New(rdb)
 
 		pubsub := rdb.Subscribe(ctx, store.TrackingAddrUpdateKey)
 		pschan := pubsub.Channel()
@@ -81,46 +78,14 @@ var cmdCollect = &cli.Command{
 				case <-pschan:
 					start := time.Now()
 					logging.Logger.Infow("reloading tracked addresses")
-					sr := rdb.HKeys(ctx, store.TrackingAddrKey)
-					addrStrs, err := sr.Result()
+
+					count, err := at.Load(ctx)
 					if err != nil {
-						logging.Logger.Errorw("failed to fetch tracking addresses", "err", err)
-					}
-
-					pipe := rdb.Pipeline()
-
-					previousAddrs := make([]address.Address, 0, len(at.actors))
-					for k := range at.actors {
-						previousAddrs = append(previousAddrs, k)
-					}
-
-					actors := make(map[address.Address][]*types.Message)
-
-					for _, addrStr := range addrStrs {
-						a, err := address.NewFromString(addrStr)
-						if err != nil {
-							logging.Logger.Warnw("failed to create address", "err", err, "addr", addrStr)
-							continue
-						}
-
-						actors[a] = []*types.Message{}
-					}
-
-					for _, addr := range previousAddrs {
-						if _, ok := actors[addr]; !ok {
-							pipe.Del(ctx, store.AddrFeedKey(addr))
-						}
-					}
-
-					at.actorsMu.Lock()
-					if _, err := pipe.Exec(ctx); err != nil {
-						logging.Logger.Errorw("failed to execute update", "err", err)
+						logging.Logger.Errorw("failed to load actors list", "err", err)
 						continue
 					}
 
-					at.actors = actors
-					at.actorsMu.Unlock()
-					logging.Logger.Infow("reloading tracked addresses finished", "elapsed", time.Now().Sub(start).Seconds(), "number", len(actors))
+					logging.Logger.Infow("reloading tracked addresses finished", "elapsed", time.Now().Sub(start).Seconds(), "number", count)
 				}
 			}
 		}()
@@ -128,7 +93,6 @@ var cmdCollect = &cli.Command{
 		darg, err := ainfo.DialArgs("v1")
 		if err != nil {
 			return err
-
 		}
 
 		api, closer, err := client.NewFullNodeRPCV1(ctx, darg, nil)
@@ -151,7 +115,6 @@ var cmdCollect = &cli.Command{
 			}
 
 			height = int64(head.Height())
-
 		}
 
 		tipsetsCh, err := GetTips(ctx, api, abi.ChainEpoch(height), 1)
@@ -254,55 +217,27 @@ var cmdCollect = &cli.Command{
 			}
 
 			for _, msg := range tmsgs {
-				if _, ok := at.actors[msg.From]; ok {
-					at.actors[msg.From] = append(at.actors[msg.From], msg)
-				}
+				at.RecordMessage(msg)
 			}
+
+			if err := at.Flush(ctx); err != nil {
+				logging.Logger.Errorw("failed to flush", "err", err)
+				return err
+			}
+
+			at.Clear()
 
 			elapsed := time.Now().Sub(start).Seconds()
 			avg = getAvg(avg, elapsed, rounds)
 			rounds = rounds + 1
 
-			at.actorsMu.Lock()
-
-			pipe := rdb.Pipeline()
-
-			for addr, msgs := range at.actors {
-				key := store.AddrFeedKey(addr)
-				for _, msg := range msgs {
-					jbs, err := json.Marshal(msg)
-					if err != nil {
-						logging.Logger.Errorw("failed to marshal msg", "err", err)
-						continue
-					}
-
-					logging.Logger.Debugw("updating addr", "addr", addr, "msgs", len(msgs))
-					pipe.LPush(ctx, key, jbs)
-				}
-				pipe.LTrim(ctx, key, 0, build.StoredMessages)
-				at.actors[addr] = []*types.Message{}
-			}
-
-			if _, err := pipe.Exec(ctx); err != nil {
-				logging.Logger.Errorw("failed to exec", "err", err)
-				at.actorsMu.Unlock()
-				continue
-			}
-
-			at.actorsMu.Unlock()
-
-			logging.Logger.Infow("tipset processed", "height", tipset.Height(), "blocks", len(tipset.Cids()), "msgs", len(tmsgs), "elapsed", elapsed, "avg", avg, "tracking", len(at.actors), "cache_size", addrCache.Len())
+			logging.Logger.Infow("tipset processed", "height", tipset.Height(), "blocks", len(tipset.Cids()), "msgs", len(tmsgs), "elapsed", elapsed, "avg", avg, "tracking", at.Len(), "cache_size", addrCache.Len())
 
 			rdb.Set(ctx, store.LastHeightKey, int64(tipset.Height()), 0)
 		}
 
 		return nil
 	},
-}
-
-type ActorTracker struct {
-	actorsMu sync.Mutex
-	actors   map[address.Address][]*types.Message
 }
 
 func getAvg(avg, x float64, n int) float64 {
