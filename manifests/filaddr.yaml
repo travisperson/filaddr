@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: filaddr-page-http
+  labels:
+    app: filaddr-page-http
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: filaddr-page-http
+  template:
+    metadata:
+      labels:
+        app: filaddr-page-http
+    spec:
+      imagePullSecrets:
+      - name: github-pkg
+      containers:
+      - name: http
+        image: ghcr.io/travisperson/filaddr/filaddr:latest
+        command: ['/dist/filaddr', 'http']
+        env:
+          - name: FILADDR_LISTEN
+            value: "0.0.0.0:8080"
+          - name: FILADDR_HOST
+            value: "filaddr.page"
+          - name: FILADDR_STATIC
+            value: "/dist/static"
+          - name: FILADDR_INTERNAL
+            value: "0.0.0.0:9090"
+          - name: FILADDR_REDIS
+            value: "redis-master.filaddr-page.svc.cluster.local:6379"
+          - name: FILADDR_REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: redis
+                key: redis-password
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: filaddr-collect
+  labels:
+    app: filaddr-collect
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: filaddr-collect
+  template:
+    metadata:
+      labels:
+        app: filaddr-collect
+    spec:
+      imagePullSecrets:
+      - name: github-pkg
+      containers:
+      - name: collect
+        image: ghcr.io/travisperson/filaddr/filaddr:latest
+        command: ['/dist/filaddr', 'collect']
+        ports:
+        - containerPort: 8080
+        env:
+          - name: FILADDR_LOTUS
+            value: "wss://api.chain.love"
+          - name: FILADDR_REDIS
+            value: "redis-master.filaddr-page.svc.cluster.local:6379"
+          - name: FILADDR_REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: redis
+                key: redis-password
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: filaddr-page
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+  selector:
+    app: filaddr-page-http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: filaddr
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+  - hosts:
+    - filaddr.page
+    secretName: filaddr-page-tls
+  rules:
+  - host: "filaddr.page"
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: filaddr-page
+            port:
+              number: 80
