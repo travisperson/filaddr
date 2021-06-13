@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>FIL Addr</title>
+
+    <link rel="stylesheet" href="/static/normalize.css">
+    <link rel="stylesheet" href="/static/skeleton.css">
+
+    <style>
+      .hero {
+        padding: 22rem 0;
+        height: 190px;
+        text-align: left;
+      }
+      .hero-heading {
+        font-size: 3.0rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="section hero">
+      <div class="container">
+        <div class="row">
+          <div class="column">
+            <h4 class="hero-heading">Monitor messages sent from a Filecoin wallet.</h4>
+            <form method="get" action="/redirect">
+              <label for="addr">Wallet Address</label>
+              <input types="text" class="u-full-width" placeholder="f1...." id="addr" name="addr">
+              <input class="button-primary" type="submit" value="Submit">
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -11,6 +11,7 @@ require (
 	github.com/filecoin-project/go-state-types v0.1.1-0.20210506134452-99b279731c48
 	github.com/filecoin-project/lotus v1.9.0
 	github.com/go-redis/redis/v8 v8.10.0
+	github.com/gorilla/feeds v1.1.1
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/urfave/cli/v2 v2.3.0

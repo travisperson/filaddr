@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>{{ .Addr }}</title>
+
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed for {{ .Addr }}" href="{{ .RssFeed }}" />
+    <link rel="alternate" type="application/atom+xml" title="Atom Feed for {{ .Addr }}" href="{{ .AtomFeed }}" />
+
+    <link rel="stylesheet" href="/static/normalize.css">
+    <link rel="stylesheet" href="/static/skeleton.css">
+
+    <style>
+      .ellipsis {
+        position: relative;
+        display: inline-block;
+        word-wrap: normal;
+        word-break: normal;
+        overflow: hidden;
+        line-height: 1;
+        width: 1em;
+        text-indent: 2em;
+      }
+
+      .ellipsis::after {
+        position: absolute;
+        display: block;
+        bottom: 0;
+        content: "";
+        left: 50%;
+        transform: translateX(-50%);
+        width: 2px;
+        height: 2px;
+        border-radius: 1px;
+        background-color: currentColor;
+        box-shadow: -0.3em 0 currentColor, 0 0 currentColor, 0.3em 0 currentColor;
+      }
+
+      @media only screen and (min-device-width: 375px) and (max-device-width: 812px) and (-webkit-min-device-pixel-ratio: 3) {
+        th:first-child, td:first-child {
+          padding-left: 15px;
+        }
+
+        body {
+          font-size: 3em;
+        }
+
+        table {
+          width: 100%;
+        }
+
+        table thead {
+          display: none;
+        }
+
+        table tr, table td {
+          border-bottom: 1px solid #ddd;
+        }
+
+        tr:nth-child(even) {
+          background: #f4f4f4;
+        }
+
+        table td {
+          display: flex;
+        }
+
+        table td::before {
+          content: attr(label);
+          font-weight: bold;
+          width: 33%;
+          min-width: 33%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="row">
+      {{ $length := len .Messages }}{{ if eq $length 0 }}
+        <p>There are no messages for this address yet, if this is your first time viewing this page your address was just registered. Check back after making some transfers.</p>
+      {{ else }}
+      <table class="u-full-width">
+        <thead>
+          <tr>
+            <th>Nonce</th>
+            <th>Message ID</th>
+            <th>To</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+        {{ range .Messages }}
+          <tr>
+            <td label="Nonce">{{ .Nonce }}</td>
+            <td label="Message ID"><a href="https://filfox.info/en/message/{{ .CID }}">{{ .CID | ellipsis_start}}<span class="ellipsis">{{ .CID | ellipsis_middle }}</span>{{ .CID | ellipsis_end }}</a></td>
+            <td label="To"><a href="https://filfox.info/en/address/{{ .To}}">{{ .To | ellipsis_start }}<span class="ellipsis">{{ .To | ellipsis_middle }}</span>{{ .To | ellipsis_end }}</a></td>
+            <td label="Value">{{ .Value }}</td>
+          </tr>
+        {{ end }}
+        </tbody>
+      </table>
+      {{ end }}
+      </div>
+    </div>
+  </body>
+</html>

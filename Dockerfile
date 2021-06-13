@@ -24,7 +24,7 @@ RUN go build -o filaddr ./cmds/filaddr
 WORKDIR /dist
 
 # Copy binary from build to main folder
-RUN cp /build/filaddr .
+RUN cp -r /build/filaddr /build/static .
 
 # Command to run when starting the container
 CMD ["/dist/filaddr"]
