@@ -3,11 +3,13 @@
   <head>
     <title>{{ .Addr }}</title>
 
+    <meta name="viewport" content="width=device-width,initial-scale=1,target-densityDpi=device-dpi,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for {{ .Addr }}" href="{{ .RssFeed }}" />
     <link rel="alternate" type="application/atom+xml" title="Atom Feed for {{ .Addr }}" href="{{ .AtomFeed }}" />
 
     <link rel="stylesheet" href="/static/normalize.css">
-    <link rel="stylesheet" href="/static/skeleton.css">
 
     <style>
       .ellipsis {
@@ -35,51 +37,88 @@
         box-shadow: -0.3em 0 currentColor, 0 0 currentColor, 0.3em 0 currentColor;
       }
 
-      @media only screen and (max-width: 550px) {
-        th:first-child, td:first-child {
-          padding-left: 15px;
-        }
+      table {
+        margin-bottom: 2.5rem;
+      }
 
+      body {
+        line-height: 1.6;
+        font-weight: 400;
+        font-family: "Raleway", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        color: #222;
+      }
+
+      a {
+        color: #0090ff;
+      }
+
+      table th:first-child,
+      table td:first-child {
+        padding-left: 15px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        border-spacing: 0;
+      }
+
+      table thead {
+        display: none;
+      }
+
+      table th,
+      table td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #e1e1e1;
+      }
+
+      table td {
+        display: flex;
+      }
+
+      table tr:nth-child(even) {
+        background: #f4f4f4;
+      }
+
+      table td::before {
+        content: attr(label);
+        font-weight: bold;
+        width: 33%;
+        min-width: 33%;
+      }
+
+      @media only screen and (min-width: 50em) {
         body {
-          font-size: 2em;
+          font-size: 1em;
         }
 
         table {
-          width: 100%;
-        }
-
-        table thead {
-          display: none;
-        }
-
-        table tr, table td {
-          border-bottom: 1px solid #ddd;
-        }
-
-        tr:nth-child(even) {
-          background: #f4f4f4;
+          display: table;
         }
 
         table td {
-          display: flex;
+          display: table-cell;
         }
 
         table td::before {
-          content: attr(label);
-          font-weight: bold;
-          width: 33%;
-          min-width: 33%;
+          content: "";
+        }
+
+        table thead {
+          display: table-header-group;
         }
       }
     </style>
   </head>
   <body>
-    <div class="container">
-      <div class="row">
+    <div>
+      <div>
       {{ $length := len .Messages }}{{ if eq $length 0 }}
         <p>There are no messages for this address yet, if this is your first time viewing this page your address was just registered. Check back after making some transfers.</p>
       {{ else }}
-      <table class="u-full-width">
+      <table>
         <thead>
           <tr>
             <th>Nonce</th>
