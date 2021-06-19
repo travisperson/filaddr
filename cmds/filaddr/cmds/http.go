@@ -35,6 +35,17 @@ var (
 	ctxCancelWait      = 3 * time.Second
 )
 
+var utcLoc *time.Location
+
+func init() {
+	loc, err := time.LoadLocation("UTC")
+	if err != nil {
+		panic(err)
+	}
+
+	utcLoc = loc
+}
+
 //go:embed addr.tmpl
 var htmlTmplAddr string
 
@@ -130,10 +141,12 @@ func (s *server) handleIndex() http.HandlerFunc {
 
 func (s *server) handleAddr() http.HandlerFunc {
 	type tmplMessage struct {
-		Nonce uint64
-		CID   string
-		To    string
-		Value string
+		Nonce    uint64
+		CID      string
+		To       string
+		Value    string
+		ValueRaw string
+		DateTime string
 	}
 	type tpmlFeed struct {
 		Addr     string
@@ -143,7 +156,7 @@ func (s *server) handleAddr() http.HandlerFunc {
 	}
 
 	type jsonFeed struct {
-		Messages []*types.Message
+		Messages []store.MessageRecord
 	}
 
 	funcs := template.FuncMap{
@@ -200,19 +213,22 @@ func (s *server) handleAddr() http.HandlerFunc {
 				}
 
 				for _, msgStr := range msgs {
-					msg := types.Message{}
+					msg := store.MessageRecord{}
 					json.Unmarshal([]byte(msgStr), &msg)
-					value := msg.Value.String()
+					value := msg.Message.Value.String()
+					mtime := time.Unix(int64(msg.Block.Timestamp), 0).In(utcLoc)
 					fValue, err := types.ParseFIL(fmt.Sprintf("%s afil", value))
 					if err != nil {
 						panic(err)
 					}
 
 					fd.Messages = append(fd.Messages, tmplMessage{
-						Nonce: msg.Nonce,
-						CID:   msg.Cid().String(),
-						To:    msg.To.String(),
-						Value: fValue.Short(),
+						Nonce:    msg.Message.Nonce,
+						CID:      msg.MessageCid.String(),
+						To:       msg.Message.To.String(),
+						Value:    fValue.Short(),
+						ValueRaw: value,
+						DateTime: mtime.Format(time.RFC3339),
 					})
 				}
 
@@ -226,9 +242,9 @@ func (s *server) handleAddr() http.HandlerFunc {
 				fd := jsonFeed{}
 
 				for _, msgStr := range msgs {
-					msg := types.Message{}
+					msg := store.MessageRecord{}
 					json.Unmarshal([]byte(msgStr), &msg)
-					fd.Messages = append(fd.Messages, &msg)
+					fd.Messages = append(fd.Messages, msg)
 				}
 
 				w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -249,19 +265,22 @@ func (s *server) handleAddr() http.HandlerFunc {
 
 				feed.Items = []*feeds.Item{}
 				for _, msgStr := range msgs {
-					msg := types.Message{}
+					msg := store.MessageRecord{}
 					json.Unmarshal([]byte(msgStr), &msg)
-					value := msg.Value.String()
+					value := msg.Message.Value.String()
+					mtime := time.Unix(int64(msg.Block.Timestamp), 0).In(utcLoc)
+					toAddr := msg.Message.To.String()
 					fValue, err := types.ParseFIL(fmt.Sprintf("%s afil", value))
 					if err != nil {
 						panic(err)
 					}
-					toAddr := msg.To.String()
 					feed.Items = append(feed.Items, &feeds.Item{
 						Title:       fmt.Sprintf("Sent %s to %s...%s", fValue.Short(), toAddr[:8], toAddr[len(toAddr)-8:]),
-						Link:        &feeds.Link{Href: fmt.Sprintf("https://filfox.info/en/message/%s", msg.Cid().String())},
-						Description: fmt.Sprintf("Nonce %d, To %s, Value %s", msg.Nonce, toAddr, fValue.Short()),
-						Created:     now,
+						Id:          msg.MessageCid.String(),
+						Link:        &feeds.Link{Href: fmt.Sprintf("https://filfox.info/en/message/%s", msg.MessageCid.String())},
+						Description: fmt.Sprintf("Nonce %d, To %s, Value %s", msg.Message.Nonce, toAddr, fValue.Short()),
+						Content:     fmt.Sprintf("Nonce %d, To %s, Value %s", msg.Message.Nonce, toAddr, fValue.Short()),
+						Created:     mtime,
 					})
 				}
 
@@ -270,7 +289,6 @@ func (s *server) handleAddr() http.HandlerFunc {
 					if err != nil {
 						panic(err)
 					}
-					fmt.Println(atom)
 					w.Header().Set("Content-Type", "application/atom+xml; charset=utf-8")
 					w.WriteHeader(http.StatusOK)
 					w.Write([]byte(atom))
@@ -282,7 +300,6 @@ func (s *server) handleAddr() http.HandlerFunc {
 					if err != nil {
 						panic(err)
 					}
-					fmt.Println(rss)
 					w.Header().Set("Content-Type", "application/rss+xml; charset=utf-8")
 					w.WriteHeader(http.StatusOK)
 					w.Write([]byte(rss))

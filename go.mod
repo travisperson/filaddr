@@ -14,6 +14,7 @@ require (
 	github.com/gorilla/feeds v1.1.1
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/golang-lru v0.5.4
+	github.com/ipfs/go-cid v0.0.7
 	github.com/urfave/cli/v2 v2.3.0
 	go.uber.org/zap v1.16.0
 )

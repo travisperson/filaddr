@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/ipfs/go-cid"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/chain/types"
@@ -21,27 +22,34 @@ const (
 	LastHeightKey         = "last_height"
 )
 
+type MessageRecord struct {
+	Message    *types.Message
+	MessageCid cid.Cid
+	Block      *types.BlockHeader
+	TipSetKey  types.TipSetKey
+}
+
 func AddrFeedKey(addr address.Address) string {
 	return fmt.Sprintf("list_messages_%s", addr.String())
 }
 
 type ActorTracker struct {
 	actorsMu sync.Mutex
-	actors   map[address.Address][]*types.Message
+	actors   map[address.Address][]MessageRecord
 	rdb      *redis.Client
 }
 
 func New(rdb *redis.Client) *ActorTracker {
 	at := &ActorTracker{}
-	at.actors = make(map[address.Address][]*types.Message)
+	at.actors = make(map[address.Address][]MessageRecord)
 	at.rdb = rdb
 
 	return at
 }
 
-func (at *ActorTracker) RecordMessage(msg *types.Message) bool {
-	if _, ok := at.actors[msg.From]; ok {
-		at.actors[msg.From] = append(at.actors[msg.From], msg)
+func (at *ActorTracker) RecordMessage(msg MessageRecord) bool {
+	if _, ok := at.actors[msg.Message.From]; ok {
+		at.actors[msg.Message.From] = append(at.actors[msg.Message.From], msg)
 		return true
 	}
 
@@ -78,7 +86,7 @@ func (at *ActorTracker) Flush(ctx context.Context) error {
 
 func (at *ActorTracker) Clear() {
 	for addr, _ := range at.actors {
-		at.actors[addr] = []*types.Message{}
+		at.actors[addr] = []MessageRecord{}
 	}
 }
 
@@ -103,7 +111,7 @@ func (at *ActorTracker) Load(ctx context.Context) (int, error) {
 		previousAddrs = append(previousAddrs, k)
 	}
 
-	actors := make(map[address.Address][]*types.Message)
+	actors := make(map[address.Address][]MessageRecord)
 
 	for _, addrStr := range addrStrs {
 		a, err := address.NewFromString(addrStr)
@@ -112,7 +120,7 @@ func (at *ActorTracker) Load(ctx context.Context) (int, error) {
 			continue
 		}
 
-		actors[a] = []*types.Message{}
+		actors[a] = []MessageRecord{}
 	}
 
 	for _, addr := range previousAddrs {

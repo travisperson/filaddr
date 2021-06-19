@@ -35,13 +35,13 @@
         box-shadow: -0.3em 0 currentColor, 0 0 currentColor, 0.3em 0 currentColor;
       }
 
-      @media only screen and (min-device-width: 375px) and (max-device-width: 812px) and (-webkit-min-device-pixel-ratio: 3) {
+      @media only screen and (max-width: 550px) {
         th:first-child, td:first-child {
           padding-left: 15px;
         }
 
         body {
-          font-size: 3em;
+          font-size: 2em;
         }
 
         table {
@@ -86,6 +86,7 @@
             <th>Message ID</th>
             <th>To</th>
             <th>Value</th>
+            <th>Timestamp</th>
           </tr>
         </thead>
         <tbody>
@@ -94,7 +95,8 @@
             <td label="Nonce">{{ .Nonce }}</td>
             <td label="Message ID"><a href="https://filfox.info/en/message/{{ .CID }}">{{ .CID | ellipsis_start}}<span class="ellipsis">{{ .CID | ellipsis_middle }}</span>{{ .CID | ellipsis_end }}</a></td>
             <td label="To"><a href="https://filfox.info/en/address/{{ .To}}">{{ .To | ellipsis_start }}<span class="ellipsis">{{ .To | ellipsis_middle }}</span>{{ .To | ellipsis_end }}</a></td>
-            <td label="Value">{{ .Value }}</td>
+            <td label="Value"><data value="{{ .ValueRaw }}">{{ .Value }}</data></td>
+            <td label="Timestamp"><time datetime="{{ .DateTime }}">{{ .DateTime }}</time></td>
           </tr>
         {{ end }}
         </tbody>
@@ -102,5 +104,8 @@
       {{ end }}
       </div>
     </div>
+  <script>
+    document.querySelectorAll("time").forEach((e) => e.innerText = new Date(e.getAttribute("datetime")).toLocaleString())
+  </script>
   </body>
 </html>

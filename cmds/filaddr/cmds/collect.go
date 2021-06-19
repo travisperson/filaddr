@@ -10,7 +10,7 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/urfave/cli/v2"
 
 	"github.com/filecoin-project/go-address"
@@ -139,7 +139,7 @@ var cmdCollect = &cli.Command{
 				continue
 			}
 
-			tmsgs := make([]*types.Message, 0, 32)
+			tmsgs := make([]store.MessageRecord, 0, 32)
 			applied := make(map[address.Address]uint64)
 
 			StateAccountKeyQuick := func(ctx context.Context, addr address.Address, tpk types.TipSetKey) (address.Address, error) {
@@ -191,6 +191,18 @@ var cmdCollect = &cli.Command{
 					continue
 				}
 
+				blockBytes, err := api.ChainReadObj(ctx, cid)
+				if err != nil {
+					logging.Logger.Errorw("failed to get block bytes", "err", err)
+					continue
+				}
+
+				block, err := types.DecodeBlock(blockBytes)
+				if err != nil {
+					logging.Logger.Errorw("failed to decode block", "err", err)
+					continue
+				}
+
 				for _, msg := range msgs.BlsMessages {
 					b, err := selectMsg(msg)
 					if err != nil {
@@ -199,7 +211,12 @@ var cmdCollect = &cli.Command{
 					}
 
 					if b {
-						tmsgs = append(tmsgs, msg)
+						tmsgs = append(tmsgs, store.MessageRecord{
+							Message:    msg,
+							MessageCid: msg.Cid(),
+							Block:      block,
+							TipSetKey:  tipset.Key(),
+						})
 					}
 				}
 
@@ -211,7 +228,12 @@ var cmdCollect = &cli.Command{
 					}
 
 					if b {
-						tmsgs = append(tmsgs, &msg.Message)
+						tmsgs = append(tmsgs, store.MessageRecord{
+							Message:    &msg.Message,
+							MessageCid: msg.Cid(),
+							Block:      block,
+							TipSetKey:  tipset.Key(),
+						})
 					}
 				}
 			}
