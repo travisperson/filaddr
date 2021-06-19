@@ -27,6 +27,10 @@ import (
 	"github.com/travisperson/filaddr/internal/store"
 )
 
+var (
+	tipsetTimeout = 20 * time.Second
+)
+
 var cmdCollect = &cli.Command{
 	Name:  "collect",
 	Usage: "start the collect service",
@@ -134,6 +138,8 @@ var cmdCollect = &cli.Command{
 			start := time.Now()
 			cids := tipset.Cids()
 
+			ctx, cancel := context.WithDeadline(ctx, time.Now().Add(tipsetTimeout))
+
 			if len(cids) == 0 {
 				logging.Logger.Errorw("tipset with zero blocks")
 				continue
@@ -188,26 +194,26 @@ var cmdCollect = &cli.Command{
 				msgs, err := api.ChainGetBlockMessages(ctx, cid)
 				if err != nil {
 					logging.Logger.Errorw("failed to get block messages", "err", err)
-					continue
+					return err
 				}
 
 				blockBytes, err := api.ChainReadObj(ctx, cid)
 				if err != nil {
 					logging.Logger.Errorw("failed to get block bytes", "err", err)
-					continue
+					return err
 				}
 
 				block, err := types.DecodeBlock(blockBytes)
 				if err != nil {
 					logging.Logger.Errorw("failed to decode block", "err", err)
-					continue
+					return err
 				}
 
 				for _, msg := range msgs.BlsMessages {
 					b, err := selectMsg(msg)
 					if err != nil {
 						logging.Logger.Errorw("failed to select bls msg", "err", err)
-						continue
+						return err
 					}
 
 					if b {
@@ -224,7 +230,7 @@ var cmdCollect = &cli.Command{
 					b, err := selectMsg(&msg.Message)
 					if err != nil {
 						logging.Logger.Errorw("failed to select secpk msg", "err", err)
-						continue
+						return err
 					}
 
 					if b {
@@ -255,7 +261,10 @@ var cmdCollect = &cli.Command{
 
 			logging.Logger.Infow("tipset processed", "height", tipset.Height(), "blocks", len(tipset.Cids()), "msgs", len(tmsgs), "elapsed", elapsed, "avg", avg, "tracking", at.Len(), "cache_size", addrCache.Len())
 
+			cancel()
+
 			rdb.Set(ctx, store.LastHeightKey, int64(tipset.Height()), 0)
+
 		}
 
 		return nil
@@ -313,7 +322,7 @@ func GetTips(ctx context.Context, api api.FullNode, lastHeight abi.ChainEpoch, h
 				cctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 
 				if _, err := api.ChainHead(cctx); err != nil {
-					log.Fatal(err)
+					logging.Logger.Errorw("failed liveness check", "err", err)
 					cancel()
 					return
 				}
