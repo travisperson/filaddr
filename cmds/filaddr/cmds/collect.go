@@ -337,18 +337,6 @@ func GetTips(ctx context.Context, api api.FullNode, lastHeight abi.ChainEpoch, h
 				}
 
 				cancel()
-			case <-ticker.C:
-				logging.Logger.Debugw("liveness")
-
-				cctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-
-				if _, err := api.ChainHead(cctx); err != nil {
-					logging.Logger.Errorw("failed liveness check", "err", err)
-					cancel()
-					return
-				}
-
-				cancel()
 			case <-ctx.Done():
 				logging.Logger.Debugw("context canceled")
 
