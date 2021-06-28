@@ -329,7 +329,7 @@ func GetTips(ctx context.Context, api api.FullNode, lastHeight abi.ChainEpoch, h
 					cancel()
 					return
 				} else {
-					if head.Height()-lastTipset.Height()+int64(headlag) > 5 {
+					if head.Height()-lastTipset.Height() > abi.ChainEpoch(2*headlag) {
 						logging.Logger.Errorw("notify channel has fallend behind", "head", head.Height(), "last_tipset", lastTipset.Height())
 						cancel()
 						return
