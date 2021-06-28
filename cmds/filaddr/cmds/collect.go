@@ -291,6 +291,8 @@ func GetTips(ctx context.Context, api api.FullNode, lastHeight abi.ChainEpoch, h
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 
+		var lastTipset *types.TipSet
+
 		for {
 			select {
 			case changes := <-notif:
@@ -310,12 +312,31 @@ func GetTips(ctx context.Context, api api.FullNode, lastHeight abi.ChainEpoch, h
 						}
 					case lotusStore.HCApply:
 						if out := hb.push(change); out != nil {
+							lastTipset = out.Val
 							chmain <- out.Val
 						}
 					case lotusStore.HCRevert:
 						hb.pop()
 					}
 				}
+			case <-ticker.C:
+				logging.Logger.Debugw("liveness")
+
+				cctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+
+				if head, err := api.ChainHead(cctx); err != nil {
+					logging.Logger.Errorw("failed liveness check", "err", err)
+					cancel()
+					return
+				} else {
+					if head.Height()-lastTipset.Height()+int64(headlag) > 5 {
+						logging.Logger.Errorw("notify channel has fallend behind", "head", head.Height(), "last_tipset", lastTipset.Height())
+						cancel()
+						return
+					}
+				}
+
+				cancel()
 			case <-ticker.C:
 				logging.Logger.Debugw("liveness")
 
