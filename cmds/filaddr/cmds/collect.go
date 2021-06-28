@@ -261,9 +261,8 @@ var cmdCollect = &cli.Command{
 
 			logging.Logger.Infow("tipset processed", "height", tipset.Height(), "blocks", len(tipset.Cids()), "msgs", len(tmsgs), "elapsed", elapsed, "avg", avg, "tracking", at.Len(), "cache_size", addrCache.Len())
 
-			cancel()
-
 			rdb.Set(ctx, store.LastHeightKey, int64(tipset.Height()), 0)
+			cancel()
 
 		}
 
