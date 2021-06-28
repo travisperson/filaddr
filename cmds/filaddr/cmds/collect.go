@@ -3,6 +3,7 @@ package cmds
 import (
 	"container/list"
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -307,6 +308,7 @@ func GetTips(ctx context.Context, api api.FullNode, lastHeight abi.ChainEpoch, h
 						}
 
 						for _, tipset := range tipsets {
+							lastTipset = tipset
 							chmain <- tipset
 						}
 					case lotusStore.HCApply:
@@ -328,6 +330,8 @@ func GetTips(ctx context.Context, api api.FullNode, lastHeight abi.ChainEpoch, h
 					cancel()
 					return
 				} else {
+					fmt.Printf("head: %v\n", head)
+					fmt.Printf("lastTipset: %v\n", lastTipset)
 					if head.Height()-lastTipset.Height() > abi.ChainEpoch(2*headlag) {
 						logging.Logger.Errorw("notify channel has fallend behind", "head", head.Height(), "last_tipset", lastTipset.Height())
 						cancel()
